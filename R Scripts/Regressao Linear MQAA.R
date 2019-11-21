@@ -12,6 +12,7 @@ library(corrplot)
 library(GGally)
 library(mctest)
 library(rje)
+library(olsrr)
 
 ###### Tratativa dos dados
 
@@ -44,6 +45,11 @@ View(DataSet)
 
 
 
+###### Regracao Linear Multipla - todas as variáveis
+
+model <- lm(DI ~ HDI + LEB + EYS + MYS + GNI + PD + IH + CPI + GINI + HI, data = DataSet)
+summary(model)
+
 ###### Correlacao
 ggpairs(DataSet)
 DataSet$PD <- log10(DataSet$PD)
@@ -56,18 +62,24 @@ corrplot(correlationMatrix, type = "upper", order = "hclust",
          tl.col = "black", tl.srt = 45)
 
 
-###### Regracao Linear Multipla - todas as variáveis
-
-model <- lm(DI ~ HDI + LEB + EYS + MYS + GNI + PD + IH + CPI + GINI + HI, data = DataSet)
-
-summary(model)
-
-
 ##### Detecção de multicolinearidade
 
 dataSetWithoutDI <- DataSet[, 1:10]
 omcdiag(dataSetWithoutDI,DataSet$DI)
 imcdiag(dataSetWithoutDI,DataSet$DI)
+
+##### Verificando a variável colinear de maior Rˆ2
+
+bestRSquared <- 0
+bestCollumnsIndexes
+for (j in 1:5) {
+  bestModel <-  lm(DI ~., data = DataSet[,c(11,j)])
+  print(summary(bestModel))
+  if((summary(bestModel)$adj.r.squared) > bestRSquared) {
+    bestRSquared <- summary(bestModel)$adj.r.squared
+    bestCollumnsIndexes <- j
+  }
+}
 
 ###### Removendo valiaveis colineares
 # hdi <- DataSet$HDI
@@ -78,35 +90,55 @@ dataSetWithoutColinearity <- DataSet[,c(1,6:10)]
 View(dataSetWithoutColinearity)
 
 #####nova deteccao de colinearidade
-dataSetWithoutDI <- DataSet[, 0:9]
 omcdiag(dataSetWithoutColinearity,DataSet$DI)
 imcdiag(dataSetWithoutColinearity,DataSet$DI)
 
+###### regressao sem variaveis colineares
 
-###### Regracao Linear Multipla - todas as variáveis
-
-powerSet(1:10)
-
-model <- lm(DI ~ HDI + PD + CPI + GINI, data = DataSet)
-model <- lm(DI ~ HDI, data = DataSet)
-resid(model)
-plot(model)
-
-###### Sccatter plot
-
-
-pairs(DataSet)
-
-df.reg.subset = df.reg[, c("LEAB", "EYOS", "MYOS", "GNIPC", "ROH")]
-
-# Imprimindo a matriz de dispersao.
-pairs(df.reg.subset, cex = 1.5)
-
-model <- lm(DI ~ HDI + LEB + EYS + MYS + GNI + PD + IH + CPI, data = DataSet)
-
+model <- lm(DI ~ HDI + CPI + GINI, data = DataSet)
 summary(model)
+coef(model)
+#### Y = -1.01 + 3.77 HDI + 0.06 CPI + 0.03 GINI
+
+###### Regracao Linear Multipla - força bruta para identificar a melhor regressão
+
+combination <- powerSet(1:10)
+bestRSquared <- 0
+bestCollumnsIndexes
+for (j in 2:length(combination)) {
+  columSet <- combination[[j]]
+  bestModel <-  lm(DI ~., data = DataSet[,c(11,columSet)])
+  if((summary(bestModel)$adj.r.squared) > bestRSquared) {
+    bestRSquared <- summary(bestModel)$adj.r.squared
+    bestCollumnsIndexes <- columSet
+  }
+}
 
 
+bestRSquared
+bestCollumnsIndexes
+model <- lm(DI ~., data = DataSet[,c(11,bestCollumnsIndexes)])
+summary(model)
+coef(model)
 
-# q <- ggplot(DataSet, aes(x=HDI, color=Region)) + geom_density()
-# q
+
+#####nova deteccao de colinearidade
+dataSetWithoutDI <- DataSet[, bestCollumnsIndexes]
+omcdiag(dataSetWithoutDI,DataSet$DI)
+imcdiag(dataSetWithoutDI,DataSet$DI)
+
+
+#######removendo colinearidade
+noColinearitydataSet <- DataSet[,c(11,bestCollumnsIndexes)]
+noColinearitydataSet <- noColinearitydataSet[,-2]
+omcdiag(noColinearitydataSet[,-1],DataSet$DI)
+imcdiag(dataSetWithoutDI[,-1],DataSet$DI)
+
+
+#### Executando o modelo
+model <- lm(DI ~., data = noColinearitydataSet)
+summary(model)
+coef(model)
+
+##### Analisando os resíduos
+ols_plot_resid_qq(model)
