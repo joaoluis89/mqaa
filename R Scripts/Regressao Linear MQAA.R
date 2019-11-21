@@ -95,9 +95,23 @@ imcdiag(dataSetWithoutColinearity,DataSet$DI)
 
 ###### regressao sem variaveis colineares
 
+
+model <- lm(DI ~ HDI + PD + IH + HI + CPI + GINI, data = DataSet)
+
+
 model <- lm(DI ~ HDI + CPI + GINI, data = DataSet)
+shapiro.test(model$residuals)
 summary(model)
 coef(model)
+plot(model)
+predict(model, list(HDI = 0.825, CPI = 40, GINI = 42.7), interval = "conf")
+
+# pairs(DataSet[,c("DI", "HDI", "CPI", "GINI")], panel = function(x, y, ...) {
+#   points(x, y, ...)
+#   abline(lm(y ~ x), col = "blue")
+# }, cex = 1.5)
+
+
 #### Y = -1.01 + 3.77 HDI + 0.06 CPI + 0.03 GINI
 
 ###### Regracao Linear Multipla - força bruta para identificar a melhor regressão
